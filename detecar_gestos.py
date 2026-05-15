@@ -71,7 +71,7 @@ def zoom_in_out(p1, p2, last_distance, radius):
             put_text(255, 0, 0, "Zoom Out", 50, 50)
             radius -= zoom
     if radius < 10: radius = 10
-    cv2.circle(frame, (100, 100), radius, (0, 255, 0), -1)
+    # cv2.circle(frame, (100, 100), radius, (0, 255, 0), -1)
     return (distance, radius)
     #print(last_distance)
 
@@ -102,31 +102,70 @@ def dedos_estendidos():
     for idx, landmarks in enumerate(latest_result.hand_landmarks):
         label = latest_result.handedness[idx][0].category_name
         for dedo in dedos:
-            num_dedos += 1
+            # num_dedos += 1
 
-            if dedo == 4: # Verifica o polegar
+            if dedo == 4:
                 if label == "Left":
-                    if landmarks[dedo].x < landmarks[dedo - 2].x: # Verifica se o polegar está estendido
-                        # num_dedos += 1
+                    if landmarks[dedo].x < landmarks[dedo - 2].x:
+                        num_dedos += 1
                         put_text(255, 0, 0, f"{dedo//4}", 500, 50 + (dedo//4)*30)
                 else:
-                    if landmarks[dedo].x > landmarks[dedo - 2].x: # Verifica se o polegar está estendido
-                        # num_dedos += 1
+                    if landmarks[dedo].x > landmarks[dedo - 2].x:
+                        num_dedos += 1
                         put_text(0, 255, 0, f"{dedo//4}", 50, 50 + (dedo//4)*30)
             else:
-                if landmarks[dedo].y < landmarks[dedo - 2].y: # Verifica se o dedo está estendido
-                    # num_dedos += 1
+                if landmarks[dedo].y < landmarks[dedo - 2].y:
+                    num_dedos += 1
                     if label == "Left":
                         put_text(255, 0, 0, f"{dedo//4}", 500, 50 + (dedo//4)*30)
                     else:
                         put_text(0, 255, 0, f"{dedo//4}", 50, 50 + (dedo//4)*30)
 
-        put_text(255, 0, 0, f"Fingers: {num_dedos}", 50, 50)
+        # put_text(255, 0, 0, f"Fingers: {num_dedos}", 50, 50)
+    return num_dedos    
+
+def dedos_left():
+    dedos = [4, 8, 12, 16, 20]
+    num_dedos = 0
+    for idx, landmarks in enumerate(latest_result.hand_landmarks):
+        label = latest_result.handedness[idx][0].category_name
+        if label == "Left":
+            for dedo in dedos:
+                if dedo == 4:
+                    if landmarks[dedo].x < landmarks[dedo - 2].x:
+                        num_dedos += 1
+                        put_text(255, 0, 0, f"{dedo//4}", 500, 50 + (dedo//4)*30)
+                else:
+                    if landmarks[dedo].y < landmarks[dedo - 2].y:
+                        num_dedos += 1
+                        put_text(255, 0, 0, f"{dedo//4}", 500, 50 + (dedo//4)*30)
+
+    return num_dedos
+
+def dedos_right():
+    dedos = [4, 8, 12, 16, 20]
+    num_dedos = 0
+    for idx, landmarks in enumerate(latest_result.hand_landmarks):
+        label = latest_result.handedness[idx][0].category_name
+        if label == "Right":
+            for dedo in dedos:
+                if dedo == 4:
+                    if landmarks[dedo].x > landmarks[dedo - 2].x:
+                        num_dedos += 1
+                        put_text(0, 255, 0, f"{dedo//4}", 50, 50 + (dedo//4)*30)
+                else:
+                    if landmarks[dedo].y < landmarks[dedo - 2].y:
+                        num_dedos += 1
+                        put_text(0, 255, 0, f"{dedo//4}", 50, 50 + (dedo//4)*30)
+
+    return num_dedos
+
+def ball_design():
+    cv2.circle(frame, (cx, cy), 5, (255, 255, 255), 1)
+
+    
 
 cap = cv2.VideoCapture(0) # cap = webcam"
-
-
-
 
 with HandLandmarker.create_from_options(options) as landmarker:
     while cap.isOpened():
@@ -134,7 +173,7 @@ with HandLandmarker.create_from_options(options) as landmarker:
         if not success: break
 
         frame = cv2.flip(frame, 1)
-        h, w, _ = frame.shape # Dimensões para converter coordenadas normalizadas
+        h, w, _ = frame.shape
         
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
         landmarker.detect_async(mp_image, int(time.time() * 1000))
@@ -151,11 +190,15 @@ with HandLandmarker.create_from_options(options) as landmarker:
 
 
                 for landmark in hand_landmarks:
-                    cx, cy = int(landmark.x * w), int(landmark.y * h) # Convertendo coordenadas normalizadas para pixels
+                    cx, cy = int(landmark.x * w), int(landmark.y * h)
 
-                    cv2.circle(frame, (cx, cy), 5, (0, 255, 0), -1) # Desenhando um círculo verde para cada landmark
-                    
-                    
+                    ball_design()
+                    num_dedos = dedos_left()
+                    put_text(255, 255, 255, f"({num_dedos})", 50, 50)
+
+                    if num_dedos == 0:
+                        put_text(255, 0, 0, "Fist", 50, 100)
+
                     # if abs(polegar.x - ponto_5.x) < 0.02 and abs(polegar.x - ponto_5.x) > -0.02:
                     #     linha_idicador_indicador(indicadores)
                     # else:
@@ -166,7 +209,6 @@ with HandLandmarker.create_from_options(options) as landmarker:
                     # radius = zoom_result[1]
                     # print(f"Distance: {last_distance:.2f}")
 
-                    dedos_estendidos()
                 
 
         cv2.imshow('MediaPipe Tasks Tracking', frame)
