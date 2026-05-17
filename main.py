@@ -5,6 +5,8 @@ import math
 import pyautogui as pag
 import numpy as np
 
+MAX_NUM_HANDS = 2
+
 class Dot:
     def __init__(self, x, y):
         self.x = x
@@ -48,7 +50,7 @@ def put_text(red, green, blue, texto, cx, cy):
     )
 
 def circle_design(x, y):
-    cv2.circle(frame, (x, y), 5, (0, 0, 0), 1)
+    cv2.circle(frame, (x, y), 5, (255, 255, 255), -1)
 
 def hip(dx, dy):
     return math.sqrt(math.fabs(math.pow(dx, 2) + math.pow(dy, 2)))
@@ -58,7 +60,7 @@ def polegar(hand_landmarks, palma):
     polegar_base = hip(hand_landmarks[4].x - hand_landmarks[2].x, hand_landmarks[4].y - hand_landmarks[2].y)
     polegar_ind_base = hip(hand_landmarks[4].x - hand_landmarks[5].x, hand_landmarks[4].y - hand_landmarks[5].y)
 
-    return polegar_palma > polegar_base and polegar_palma > polegar_ind_base * 2
+    return polegar_palma > polegar_base and polegar_palma < polegar_ind_base * 2
 
 def finger(hand_landmarks, palma, i):
     dedo_palma = hip(hand_landmarks[i].x - palma.x/w, hand_landmarks[i].y - palma.y/h)
@@ -107,9 +109,74 @@ def mouse_control(palma):
     mouse_y = np.interp(hand_landmarks[8].y, [0, h], [0, window_height])
     if finger(hand_landmarks, palma, 8) and not finger(hand_landmarks, palma, 12) and not finger(hand_landmarks, palma, 16) and not finger(hand_landmarks, palma, 20):
         pag.moveTo(mouse_x * 900, mouse_y *900)
-        if not polegar( hand_landmarks, palma):
+        if  polegar( hand_landmarks, palma):
             pag.click()
+            time.sleep(0.7)
+            if polegar( hand_landmarks, palma):
+                pag.doubleClick()
+                time.sleep(1)
+                if polegar( hand_landmarks, palma):
+                    pag.doubleClick()
+                    pag.click()
+                    time.sleep(2)
+                
 
+def scroll_control(palma):
+    
+    if finger(hand_landmarks, palma, 8) and finger(hand_landmarks, palma, 12) and not finger(hand_landmarks, palma, 16) and not finger(hand_landmarks, palma, 20):
+        if polegar(hand_landmarks, palma):
+            pag.scroll(50)
+        else:
+            pag.scroll(-50)
+
+
+def side_arrow(palma):
+    dx = hand_landmarks[12].x - hand_landmarks[0].x
+    dy = hand_landmarks[12].y - hand_landmarks[0].y
+    if np.arctan2(dy, dx) < -1.8:
+        pag.press('left')
+        time.sleep(0.8)
+    elif np.arctan2(dy, dx) > -1.2:
+        pag.press('right')
+        time.sleep(0.8)
+
+def fist(palma):
+    return polegar(hand_landmarks, palma) and not finger(hand_landmarks, palma, 8) and not finger(hand_landmarks, palma, 12) and not finger(hand_landmarks, palma, 16) and not finger(hand_landmarks, palma, 20)
+        
+
+
+def vertical_arrow(palma, idx):
+    
+    label = latest_result.handedness[idx][0].category_name
+    
+    put_text(0, 0, 255, f"({dedos_left(palma)})", 100, 100)
+    if label == "Right":
+        if finger(hand_landmarks, palma, 8) and finger(hand_landmarks, palma, 12) and not finger(hand_landmarks, palma, 16) and not finger(hand_landmarks, palma, 20):
+            if polegar(hand_landmarks, palma):
+                pag.press('up')
+            else:
+                pag.press('down')
+            
+
+def finger_lines(hand_landmarks):
+    for i in [4, 8, 12, 16, 20, 6, 10, 14, 18, 7, 11, 15, 19, 2, 1, 3]:
+        # cx, cy = int(hand_landmarks[i].x * w), int(hand_landmarks[i].y * h)
+        # cv2.line(frame, (cx, cy), (int(p_palma.x), int(p_palma.y)), (0, 0, 255), 1)
+            
+        x_init = int(hand_landmarks[i-1].x * w)
+        y_init = int(hand_landmarks[i-1].y * h)
+        x_end = int(hand_landmarks[i].x * w)
+        y_end = int(hand_landmarks[i].y * h)
+
+        cv2.line(frame, (x_init, y_init), (x_end, y_end), (255, 255, 255), 1)
+
+    for i in [0, 5, 9, 13, 17]:
+        x_init = int(hand_landmarks[i].x * w)
+        y_init = int(hand_landmarks[i].y * h)
+        x_end = int(hand_landmarks[i - 4].x * w)
+        y_end = int(hand_landmarks[i - 4].y * h)
+
+        cv2.line(frame, (x_init, y_init), (x_end, y_end), (255, 255, 255), 1)
 
 # ==================================== MAIN ==============================================
 
@@ -139,9 +206,12 @@ with HandLandmarker.create_from_options(options) as landmarker:
                 p_palma = Dot(int((rp0.x + rp5.x + rp17.x) / 3 * w), int((rp0.y + rp5.y + rp17.y) / 3 * h))
                 cv2.circle(frame, (int(p_palma.x), int(p_palma.y)), 5, (0, 0, 0), 1)
 
-                mouse_control(p_palma)
+                # mouse_control(p_palma)
+                # scroll_control(p_palma)
+                # side_arrow(p_palma)
 
-                put_text(0, 255, 0, f'Left: {polegar(hand_landmarks, p_palma)}', 10, 30)
+                put_text(0, 0, 255, f"({dedos_left(p_palma)})", 100, 100)
+                finger_lines(hand_landmarks)
 
                 # label = latest_result.handedness[idx].category_name
 
