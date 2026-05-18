@@ -7,6 +7,10 @@ import numpy as np
 
 MAX_NUM_HANDS = 2
 
+white = (255, 255, 255)
+black = (0, 0, 0)
+
+
 class Dot:
     def __init__(self, x, y):
         self.x = x
@@ -49,8 +53,10 @@ def put_text(red, green, blue, texto, cx, cy):
         thickness=2            # Espessura da linha das letras
     )
 
-def circle_design(x, y):
-    cv2.circle(frame, (x, y), 5, (255, 255, 255), -1)
+def circle_design(hand_landmarks):
+    for i in range(21):
+        cx, cy = int(hand_landmarks[i].x * w), int(hand_landmarks[i].y * h)
+        cv2.circle(frame, (cx, cy), 5, black, -1)
 
 def hip(dx, dy):
     return math.sqrt(math.fabs(math.pow(dx, 2) + math.pow(dy, 2)))
@@ -96,7 +102,6 @@ def dedos_right(palma):
             if label == "Right":
                 if polegar(hand_landmarks, palma):
                     num_dedos += 1
-
             for i in [8, 12, 16, 20]:
                 if label == "Right" and finger(hand_landmarks, palma, i):
                     num_dedos += 1
@@ -142,7 +147,6 @@ def side_arrow(palma):
 
 def fist(palma):
     return polegar(hand_landmarks, palma) and not finger(hand_landmarks, palma, 8) and not finger(hand_landmarks, palma, 12) and not finger(hand_landmarks, palma, 16) and not finger(hand_landmarks, palma, 20)
-        
 
 
 def vertical_arrow(palma, idx):
@@ -168,7 +172,8 @@ def finger_lines(hand_landmarks):
         x_end = int(hand_landmarks[i].x * w)
         y_end = int(hand_landmarks[i].y * h)
 
-        cv2.line(frame, (x_init, y_init), (x_end, y_end), (255, 255, 255), 1)
+        cv2.line(frame, (x_init, y_init), (x_end, y_end), black
+        , 1)
 
     for i in [0, 5, 9, 13, 17]:
         x_init = int(hand_landmarks[i].x * w)
@@ -176,12 +181,13 @@ def finger_lines(hand_landmarks):
         x_end = int(hand_landmarks[i - 4].x * w)
         y_end = int(hand_landmarks[i - 4].y * h)
 
-        cv2.line(frame, (x_init, y_init), (x_end, y_end), (255, 255, 255), 1)
+        cv2.line(frame, (x_init, y_init), (x_end, y_end), black
+        , 1)
 
 # ==================================== MAIN ==============================================
 
 
-cap = cv2.VideoCapture(0) # cap = webcam"
+cap = cv2.VideoCapture(1) # cap = webcam"
 
 with HandLandmarker.create_from_options(options) as landmarker:
     while cap.isOpened():
@@ -194,31 +200,40 @@ with HandLandmarker.create_from_options(options) as landmarker:
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
         landmarker.detect_async(mp_image, int(time.time() * 1000))
 
+        left_hand = None
+        right_hand = None
+        left_palma = None
+        right_palma = None
+
         if latest_result and latest_result.hand_landmarks:
-            
-
             for idx, hand_landmarks in enumerate(latest_result.hand_landmarks):
-
-                rp0 = hand_landmarks[0]
-                rp5 = hand_landmarks[5]
-                rp17 = hand_landmarks[17]
-
-                p_palma = Dot(int((rp0.x + rp5.x + rp17.x) / 3 * w), int((rp0.y + rp5.y + rp17.y) / 3 * h))
-                cv2.circle(frame, (int(p_palma.x), int(p_palma.y)), 5, (0, 0, 0), 1)
-
-                # mouse_control(p_palma)
-                # scroll_control(p_palma)
-                # side_arrow(p_palma)
-
-                put_text(0, 0, 255, f"({dedos_left(p_palma)})", 100, 100)
-                finger_lines(hand_landmarks)
-
-                # label = latest_result.handedness[idx].category_name
-
-                for landmark in hand_landmarks:
-                    cx, cy = int(landmark.x * w), int(landmark.y * h)
+                label = latest_result.handedness[idx][0].category_name
+                if label == "Left":
+                    left_hand = hand_landmarks
+                    left_palma = Dot((hand_landmarks[0].x + hand_landmarks[5].x + hand_landmarks[17].x)/3 * w, (hand_landmarks[0].y + hand_landmarks[5].y + hand_landmarks[17].y)/3 * h)
                     
-                    circle_design(cx, cy)
+                elif label == "Right":
+                    right_hand = hand_landmarks
+                    right_palma = Dot((hand_landmarks[0].x + hand_landmarks[5].x + hand_landmarks[17].x)/3 * w, (hand_landmarks[0].y + hand_landmarks[5].y + hand_landmarks[17].y)/3 * h)
+
+        if left_hand and right_hand:
+            finger_lines(left_hand)
+            finger_lines(right_hand)
+            circle_design(left_hand)
+            circle_design(right_hand)
+            put_text(255, 0, 0, f"({dedos_left(left_palma)})", w -100, 100)
+            put_text(0, 255, 0, f"({dedos_right(right_palma)})", 100, 100)
+
+        if left_hand:
+            finger_lines(left_hand)
+            circle_design(left_hand)
+            put_text(255, 0, 0, f"({dedos_left(left_palma)})", w - 100, 100)
+
+        if right_hand:
+            finger_lines(right_hand)
+            circle_design(right_hand)
+            put_text(0, 255, 0, f"({dedos_right(right_palma)})", 100, 100)
+
 
         cv2.imshow('MediaPipe Tasks Tracking', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'): break
