@@ -10,6 +10,7 @@ MAX_NUM_HANDS = 2
 white = (255, 255, 255)
 black = (0, 0, 0)
 
+color = white
 
 class Dot:
     def __init__(self, x, y):
@@ -56,7 +57,29 @@ def put_text(red, green, blue, texto, cx, cy):
 def circle_design(hand_landmarks):
     for i in range(21):
         cx, cy = int(hand_landmarks[i].x * w), int(hand_landmarks[i].y * h)
-        cv2.circle(frame, (cx, cy), 5, black, -1)
+        cv2.circle(frame, (cx, cy), 5, color, -1)
+
+def finger_lines(hand_landmarks):
+    for i in [4, 8, 12, 16, 20, 6, 10, 14, 18, 7, 11, 15, 19, 2, 1, 3]:
+        # cx, cy = int(hand_landmarks[i].x * w), int(hand_landmarks[i].y * h)
+        # cv2.line(frame, (cx, cy), (int(p_palma.x), int(p_palma.y)), (0, 0, 255), 1)
+            
+        x_init = int(hand_landmarks[i-1].x * w)
+        y_init = int(hand_landmarks[i-1].y * h)
+        x_end = int(hand_landmarks[i].x * w)
+        y_end = int(hand_landmarks[i].y * h)
+
+        cv2.line(frame, (x_init, y_init), (x_end, y_end), color
+        , 1)
+
+    for i in [0, 5, 9, 13, 17]:
+        x_init = int(hand_landmarks[i].x * w)
+        y_init = int(hand_landmarks[i].y * h)
+        x_end = int(hand_landmarks[i - 4].x * w)
+        y_end = int(hand_landmarks[i - 4].y * h)
+
+        cv2.line(frame, (x_init, y_init), (x_end, y_end), color
+        , 1)
 
 def hip(dx, dy):
     return math.sqrt(math.fabs(math.pow(dx, 2) + math.pow(dy, 2)))
@@ -108,6 +131,10 @@ def dedos_right(palma):
                 
     return num_dedos
 
+def fist(palma):
+    return polegar(hand_landmarks, palma) and not finger(hand_landmarks, palma, 8) and not finger(hand_landmarks, palma, 12) and not finger(hand_landmarks, palma, 16) and not finger(hand_landmarks, palma, 20)
+
+
 def mouse_control(palma):
     window_width, window_height = pag.size()
     mouse_x = np.interp(hand_landmarks[8].x, [0, w], [0, window_width])
@@ -116,14 +143,6 @@ def mouse_control(palma):
         pag.moveTo(mouse_x * 900, mouse_y *900)
         if  polegar( hand_landmarks, palma):
             pag.click()
-            time.sleep(0.7)
-            if polegar( hand_landmarks, palma):
-                pag.doubleClick()
-                time.sleep(1)
-                if polegar( hand_landmarks, palma):
-                    pag.doubleClick()
-                    pag.click()
-                    time.sleep(2)
                 
 
 def scroll_control(palma):
@@ -140,54 +159,24 @@ def side_arrow(palma):
     dy = hand_landmarks[12].y - hand_landmarks[0].y
     if np.arctan2(dy, dx) < -1.8:
         pag.press('left')
-        time.sleep(0.8)
     elif np.arctan2(dy, dx) > -1.2:
         pag.press('right')
-        time.sleep(0.8)
 
-def fist(palma):
-    return polegar(hand_landmarks, palma) and not finger(hand_landmarks, palma, 8) and not finger(hand_landmarks, palma, 12) and not finger(hand_landmarks, palma, 16) and not finger(hand_landmarks, palma, 20)
-
-
-def vertical_arrow(palma, idx):
-    
-    label = latest_result.handedness[idx][0].category_name
-    
+def vertical_arrow(palma):    
     put_text(0, 0, 255, f"({dedos_left(palma)})", 100, 100)
-    if label == "Right":
-        if finger(hand_landmarks, palma, 8) and finger(hand_landmarks, palma, 12) and not finger(hand_landmarks, palma, 16) and not finger(hand_landmarks, palma, 20):
-            if polegar(hand_landmarks, palma):
-                pag.press('up')
-            else:
-                pag.press('down')
-            
+    if finger(hand_landmarks, palma, 8) and finger(hand_landmarks, palma, 12) and not finger(hand_landmarks, palma, 16) and not finger(hand_landmarks, palma, 20):
+        if polegar(hand_landmarks, palma):
+            pag.press('up')
+        else:
+            pag.press('down')
 
-def finger_lines(hand_landmarks):
-    for i in [4, 8, 12, 16, 20, 6, 10, 14, 18, 7, 11, 15, 19, 2, 1, 3]:
-        # cx, cy = int(hand_landmarks[i].x * w), int(hand_landmarks[i].y * h)
-        # cv2.line(frame, (cx, cy), (int(p_palma.x), int(p_palma.y)), (0, 0, 255), 1)
-            
-        x_init = int(hand_landmarks[i-1].x * w)
-        y_init = int(hand_landmarks[i-1].y * h)
-        x_end = int(hand_landmarks[i].x * w)
-        y_end = int(hand_landmarks[i].y * h)
 
-        cv2.line(frame, (x_init, y_init), (x_end, y_end), black
-        , 1)
-
-    for i in [0, 5, 9, 13, 17]:
-        x_init = int(hand_landmarks[i].x * w)
-        y_init = int(hand_landmarks[i].y * h)
-        x_end = int(hand_landmarks[i - 4].x * w)
-        y_end = int(hand_landmarks[i - 4].y * h)
-
-        cv2.line(frame, (x_init, y_init), (x_end, y_end), black
-        , 1)
 
 # ==================================== MAIN ==============================================
 
 
-cap = cv2.VideoCapture(1) # cap = webcam"
+cap = cv2.VideoCapture(0) # cap = webcam"
+state = 0
 
 with HandLandmarker.create_from_options(options) as landmarker:
     while cap.isOpened():
@@ -228,11 +217,27 @@ with HandLandmarker.create_from_options(options) as landmarker:
             finger_lines(left_hand)
             circle_design(left_hand)
             put_text(255, 0, 0, f"({dedos_left(left_palma)})", w - 100, 100)
+            
+            match state:
+                case 1:
+                    mouse_control(left_palma)
+                    scroll_control(left_palma)
+                    
+                case 2:
+                    side_arrow(left_palma)
+                    vertical_arrow(left_palma)
+
 
         if right_hand:
             finger_lines(right_hand)
             circle_design(right_hand)
             put_text(0, 255, 0, f"({dedos_right(right_palma)})", 100, 100)
+
+            if fist(right_palma):
+                state = 1
+            
+            if finger(right_hand, right_palma, 8) and not finger(right_hand, right_palma, 12) and not finger(right_hand, right_palma, 16) and not finger(right_hand, right_palma, 20) and not polegar(right_hand, right_palma):
+                state = 2
 
 
         cv2.imshow('MediaPipe Tasks Tracking', frame)
